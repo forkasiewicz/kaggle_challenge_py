@@ -18,25 +18,33 @@ class DataProcessor:
             self.df = self.df.drop(columns=[column])
             self.df = self.df.join(one_hot_columns)
 
-    def scale(self: "DataProcessor", *columns: str) -> None:
+    def min_max(self: "DataProcessor", *columns: str) -> None:
         for column in columns:
             col_min = self.df[column].min()
             col_max = self.df[column].max()
             self.df[column] = (self.df[column] - col_min) / (col_max - col_min)
 
+    def standardize(self: "DataProcessor", *columns: str) -> None:
+        for column in columns:
+            col_mean = self.df[column].mean()
+            stdev = self.df[column].std()
+            self.df[column] = (self.df[column] - col_mean) / stdev
+
     def split_data(self: "DataProcessor", train_size: float) -> tuple[pd.DataFrame, pd.DataFrame]:
-        row_count: int = len(self.df)
+        randomized_df = self.df.sample(frac=1, random_state=42).reset_index(drop=True)
+        
+        row_count: int = len(randomized_df)
         train_row_count: int = int(train_size * row_count)
 
-        hidden_df: pd.DataFrame = self.df.iloc[train_row_count:].copy()
-        train_df: pd.DataFrame = self.df.iloc[:train_row_count].copy()
+        hidden_df = randomized_df.iloc[train_row_count:].copy()
+        train_df = randomized_df.iloc[:train_row_count].copy()
         return train_df, hidden_df
 
 class LinearRegression:
     def __init__(self: "LinearRegression", df: pd.DataFrame, target: str) -> None:
-        self.X: np.ndarray = df.drop(columns=target).to_numpy()
-        self.y: np.ndarray = df[target].to_numpy().reshape(-1, 1)
-        self.w: np.ndarray = np.zeros((self.X.shape[1], 1))
+        self.X: np.ndarray = df.drop(columns=target).to_numpy(dtype=np.float32)
+        self.y: np.ndarray = df[target].to_numpy(dtype=np.float32).reshape(-1, 1)
+        self.w: np.ndarray = np.zeros((self.X.shape[1], 1), dtype=np.float32)
         self.b: float = 0.0
 
     def predict(self: "LinearRegression", X: np.ndarray) -> np.ndarray:
@@ -57,7 +65,7 @@ class LinearRegression:
     def train(self: "LinearRegression", iterations: int = 1000, learning_step: float = 0.0001) -> None:
         m: int = self.X.shape[0]
 
-        for i in range(iterations):
+        for _ in range(iterations):
             y_hat = self.predict(self.X)
             error = y_hat - self.y
 
@@ -67,23 +75,22 @@ class LinearRegression:
             self.w = self.w - (dw * learning_step)
             self.b -= db * learning_step
 
-            print(f"iteration {i}: w0 = {self.w[0]}, b = {self.b}")
-
 if __name__ == "__main__":
-    csv: DataProcessor = DataProcessor("diamonds.csv")
+    csv: DataProcessor = DataProcessor(file_path="diamonds.csv")
     csv.one_hot("cut", "color", "clarity")
-    csv.scale("carat", "depth", "table", "x", "y", "z")
+    # csv.min_max("carat", "depth", "table", "x", "y", "z")
+    csv.standardize("carat", "depth", "table", "x", "y", "z")
 
-    train_df, hidden_df = csv.split_data(train_size=0.8)
+    train_df, hidden_df = csv.split_data(train_size=0.80)
     target = "price"
 
     model = LinearRegression(train_df, target=target)
-    model.train(iterations=100000, learning_step=0.000001)
+    model.train(iterations=20000, learning_step=0.01)
 
-    hidden_X: np.ndarray = hidden_df.drop(columns=target).to_numpy()
-    hidden_y: np.ndarray = hidden_df[target].to_numpy().reshape(-1, 1)
+    hidden_X: np.ndarray = hidden_df.drop(columns=target).to_numpy(dtype=np.float32)
+    hidden_y: np.ndarray = hidden_df[target].to_numpy(dtype=np.float32).reshape(-1, 1)
 
-    print(model.calculate_rmse(hidden_X, hidden_y))
-    print(model.calculate_r2(hidden_X, hidden_y))
+    print(f"RMSE: {model.calculate_rmse(hidden_X, hidden_y)}")
+    print(f"  R2: {model.calculate_r2(hidden_X, hidden_y)}")
 
     # to_csv("answers_Forkasiewicz.csv")
