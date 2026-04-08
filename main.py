@@ -5,6 +5,7 @@
 """
 
 import pandas as pd
+import numpy as np
 
 class DataProcessor:
     def __init__(self, file_path: str) -> None:
@@ -33,30 +34,37 @@ class DataProcessor:
 
 class LinearRegression:
     def __init__(self, df: pd.DataFrame, target: str) -> None:
-        self.y = csv.df[target]
-        self.X: pd.DataFrame = csv.df.drop(columns=target)
+        self.X: np.ndarray = df.drop(columns=target).to_numpy()
+
+        self.y: np.ndarray = df[target].to_numpy()
+
+        self.b: float = 0.0
+
+        self.w = np.zeros((df.shape[1], 1))
 
 if __name__ == "__main__":
     csv: DataProcessor = DataProcessor("diamonds.csv")
     csv.one_hot("cut", "color", "clarity")
     csv.scale("carat", "depth", "table", "x", "y", "z")
-
+    
     train_df, hidden_df = csv.split_data(train_size=0.8)
 
-    hidden_df.to_csv("answers_Forkasiewicz.csv")
+    print(csv.df.shape)
 
-    linear_regression = LinearRegression(train_df, target="price")
+    # linear_regression = LinearRegression(train_df, target="price")
+
+    # to_csv("answers_Forkasiewicz.csv")
 
 """
-I would want to keep these weights somewhere. and then do a final rerun for the
-hidden dataset and compare the price result from the final rerun to the actual
-price.
+loop:
+    initialize weights and bias (all zeros)
+    calculate y_hat (matrix multiplication) y_hat = X@w + b
+    calculate rmse
+    calculate derivatives of w and b 
+    subtract gradient * learning_rate from w and b
 
-weight (w) - the multiplier (e.g. how much the price depends on this)
-bias (b) - (bias) base price
-
-example:
-price = (w * height) + b
-
-price = (w * height) + (w * width) + b
+for checking the results I would want a separate method that would use the
+weights for a final rerun using the hidden dataset and compare the prediction
+against the target. Essentially reinitialize our trained linearregression with
+a different set.
 """
