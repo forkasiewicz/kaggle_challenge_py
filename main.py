@@ -35,40 +35,55 @@ class DataProcessor:
 class LinearRegression:
     def __init__(self: "LinearRegression", df: pd.DataFrame, target: str) -> None:
         self.X: np.ndarray = df.drop(columns=target).to_numpy()
-        self.y: np.ndarray = df[target].to_numpy()
+        self.y: np.ndarray = df[target].to_numpy().reshape(-1, 1)
         self.w: np.ndarray = np.zeros((self.X.shape[1], 1))
         self.b: float = 0.0
 
     def predict(self: "LinearRegression", X: np.ndarray) -> np.ndarray:
         return (X @ self.w) + self.b
-        
+
     def calculate_rmse(self: "LinearRegression", X: np.ndarray, y: np.ndarray) -> float:
-        y_hat: np.ndarray = self.predict(X)
-        mse = np.mean((y_hat - y) ** 2)
-        return np.sqrt(mse)
+        y_hat = self.predict(X)
+
+        return np.sqrt(np.mean((y_hat - y) ** 2))
+
+    def calculate_r2(self: "LinearRegression", X: np.ndarray, y: np.ndarray) -> float:
+        y_hat = self.predict(X)
+        ss_res = np.sum((y - y_hat) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+
+        return 1 - ss_res / ss_tot
+
+    def train(self: "LinearRegression", iterations: int = 1000, learning_step: float = 0.0001) -> None:
+        m: int = self.X.shape[0]
+
+        for i in range(iterations):
+            y_hat = self.predict(self.X)
+            error = y_hat - self.y
+
+            dw: np.ndarray = (1 / m) * (self.X.T @ error)
+            db = float(np.mean(error))
+
+            self.w = self.w - (dw * learning_step)
+            self.b -= db * learning_step
+
+            print(f"iteration {i}: w0 = {self.w[0]}, b = {self.b}")
 
 if __name__ == "__main__":
     csv: DataProcessor = DataProcessor("diamonds.csv")
     csv.one_hot("cut", "color", "clarity")
     csv.scale("carat", "depth", "table", "x", "y", "z")
-    
-    train_df, hidden_df = csv.split_data(train_size=0.8)
 
-    # linear_regression = LinearRegression(train_df, target="price")
+    train_df, hidden_df = csv.split_data(train_size=0.8)
+    target = "price"
+
+    model = LinearRegression(train_df, target=target)
+    model.train(iterations=100000, learning_step=0.000001)
+
+    hidden_X: np.ndarray = hidden_df.drop(columns=target).to_numpy()
+    hidden_y: np.ndarray = hidden_df[target].to_numpy().reshape(-1, 1)
+
+    print(model.calculate_rmse(hidden_X, hidden_y))
+    print(model.calculate_r2(hidden_X, hidden_y))
 
     # to_csv("answers_Forkasiewicz.csv")
-
-"""
-initialize weights and bias (all zeros)
-
-loop:
-    calculate y_hat (matrix multiplication) y_hat = X@w + b
-    calculate rmse
-    calculate derivatives of w and b 
-    subtract gradient * learning_rate from w and b
-
-for checking the results I would want a separate method that would use the
-weights for a final rerun using the hidden dataset and compare the prediction
-against the target. Essentially reinitialize our trained linearregression with
-a different set.
-"""
