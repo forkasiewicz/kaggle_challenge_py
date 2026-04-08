@@ -7,24 +7,27 @@
 import pandas as pd
 
 class Data:
-    def __init__(self: Data, file_path: str):
+    def __init__(self, file_path: str):
         self.file_path: str = file_path
         self.df: pd.DataFrame = pd.read_csv(file_path, index_col=0)
 
-    def one_hot(self: Data, column: str) -> Data:
+    def one_hot(self, column: str) -> "Data":
         one_hot_columns: pd.DataFrame = pd.get_dummies(self.df[column], prefix=column)
         self.df = self.df.drop(columns=[column])
         self.df = self.df.join(one_hot_columns)
         return self
 
-    def scale(self: Data):
-        pass
+    def scale(self, column: str) -> "Data":
+        col_max: float = max(self.df[column])
+        col_min: float = max(self.df[column])
+        self.df[column] = (self.df[column] - col_min) / (col_max - col_min)
+        return self
 
-    def split_data(self: Data, train_size: float):
+    def split_data(self, train_size: float):
         pass
 
 class LinearRegression:
-    def __init__(self: LinearRegression, X: pd.DataFrame, y: pd.DataFrame) -> None:
+    def __init__(self, X: pd.DataFrame, y: pd.DataFrame) -> None:
         self.X: pd.DataFrame = X
         self.y: pd.DataFrame = y
 
@@ -32,11 +35,13 @@ class LinearRegression:
 if __name__ == "__main__":
     data: Data = Data("diamonds.csv")
     data = data.one_hot("cut").one_hot("color").one_hot("clarity")
+    data = data.scale("carat").scale("depth").scale("table")
+    data = data.scale("x").scale("y").scale("z")
 
-    # data.df.to_csv("answers_kacper_forkasiewicz.csv")
-    y = data.df["price"]
-    X = data.df.drop(columns="price")
-    linear_regression: LinearRegression = LinearRegression(X, y)
+    data.df.to_csv("answers_Forkasiewicz.csv")
+    # y = data.df["price"]
+    # X = data.df.drop(columns="price")
+    # linear_regression: LinearRegression = LinearRegression(X, y)
 
 """
 weight (w) - the multiplier (e.g. how much the price depends on this)
